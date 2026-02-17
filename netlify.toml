@@ -1,0 +1,26 @@
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "build"
+
+# Redirect all routes to index.html for React Router
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Cache configuration
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# Environment specific
+[context.production]
+  command = "npm run build"
+  environment = { REACT_APP_API_URL = "https://your-backend-url.onrender.com/api" }
