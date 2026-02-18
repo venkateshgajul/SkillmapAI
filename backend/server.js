@@ -12,7 +12,11 @@ const adminRoutes = require('./routes/admin');
 
 const app = express();
 
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:3000', credentials: true }));
+// Allow requests from the frontend. Use CLIENT_URL in the environment for strict CORS
+// In absence of CLIENT_URL (e.g., quick deploy), fall back to allowing all origins so the
+// hosted frontend (Netlify) can reach the API. Replace with a specific URL in production.
+const corsOptions = { origin: process.env.CLIENT_URL || true, credentials: true };
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
