@@ -30,8 +30,8 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/skillgapm
 })
   .then(() => console.log('MongoDB connected'))
   .catch(err => {
-    console.error('MongoDB connection error:', err);
-    process.exit(1);
+    console.warn('⚠️ MongoDB connection failed (will retry):', err.message);
+    // Don't exit - let server start anyway for health checks
   });
 
 app.use('/api/auth', authRoutes);
