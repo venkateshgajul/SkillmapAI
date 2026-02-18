@@ -48,4 +48,10 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ✓ Server running on port ${PORT}`);
+  console.log(`[${timestamp}] Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`[${timestamp}] MongoDB: ${process.env.MONGODB_URI ? 'configured' : 'using default'}`);
+  console.log(`[${timestamp}] CORS origin: ${process.env.CLIENT_URL || 'all'}`);
+});
