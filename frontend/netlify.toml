@@ -22,7 +22,7 @@
 # Environment specific
 [context.production]
   command = "npm run build"
-  environment = { REACT_APP_API_URL = "https://your-backend-url.onrender.com/api" }
+  environment = { REACT_APP_API_URL = "https://skillmaper-tqvcv87i71.vercel.app/api" }
 
 [context.deploy-preview]
   command = "npm run build"
