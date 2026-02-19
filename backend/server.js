@@ -25,30 +25,73 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const mongoUri = process.env.MONGODB_URI ||
   (process.env.NODE_ENV === 'production' ? null : 'mongodb://localhost:27017/skillgapmapper');
 
-if (!mongoUri) {
-  console.warn('⚠️ MONGODB_URI is not set. API endpoints requiring database access will return 503.');
-} else {
-  mongoose.connect(mongoUri, {
+let mongoConnectPromise = null;
+
+const connectMongo = () => {
+  if (!mongoUri) {
+    return Promise.reject(new Error('MONGODB_URI is not set'));
+  }
+
+  if (mongoose.connection.readyState === 1) {
+    return Promise.resolve();
+  }
+
+  if (mongoConnectPromise) {
+    return mongoConnectPromise;
+  }
+
+  mongoConnectPromise = mongoose.connect(mongoUri, {
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
     maxPoolSize: 10,
     minPoolSize: 2,
     retryWrites: true
   })
-    .then(() => console.log('MongoDB connected'))
+    .then(() => {
+      console.log('MongoDB connected');
+    })
     .catch(err => {
       console.warn('⚠️ MongoDB connection failed (will retry):', err.message);
-      // Don't exit - let server start anyway for health checks
+      throw err;
+    })
+    .finally(() => {
+      mongoConnectPromise = null;
     });
+
+  return mongoConnectPromise;
+};
+
+if (!mongoUri) {
+  console.warn('⚠️ MONGODB_URI is not set. API endpoints requiring database access will return 503.');
+} else {
+  connectMongo().catch(() => {
+    // Don't exit - let server start anyway for health checks and retries
+  });
 }
 
 mongoose.connection.on('disconnected', () => {
   console.warn('⚠️ MongoDB disconnected');
 });
 
-const requireDbConnection = (req, res, next) => {
+const requireDbConnection = async (req, res, next) => {
   if (req.path === '/health') {
     return next();
+  }
+
+  if (!mongoUri) {
+    return res.status(503).json({
+      error: 'Database is unavailable. Please try again in a moment.'
+    });
+  }
+
+  if (mongoose.connection.readyState !== 1) {
+    try {
+      await connectMongo();
+    } catch (err) {
+      return res.status(503).json({
+        error: 'Database is unavailable. Please try again in a moment.'
+      });
+    }
   }
 
   if (mongoose.connection.readyState !== 1) {
@@ -56,6 +99,7 @@ const requireDbConnection = (req, res, next) => {
       error: 'Database is unavailable. Please try again in a moment.'
     });
   }
+
   next();
 };
 
