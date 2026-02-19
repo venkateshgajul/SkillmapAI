@@ -2,8 +2,10 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/User');
 
+const jwtSecret = (process.env.JWT_SECRET || 'fallback_secret').trim();
+
 const generateToken = (userId) =>
-  jwt.sign({ userId }, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '7d' });
+  jwt.sign({ userId }, jwtSecret, { expiresIn: '7d' });
 
 const ensureDbReady = (res) => {
   if (mongoose.connection.readyState !== 1) {

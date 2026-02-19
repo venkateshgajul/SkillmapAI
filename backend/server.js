@@ -12,6 +12,8 @@ const adminRoutes = require('./routes/admin');
 
 const app = express();
 
+const getEnv = (key) => (process.env[key] || '').trim();
+
 mongoose.set('bufferCommands', false);
 
 // Allow requests from the frontend. Use CLIENT_URL in the environment for strict CORS
@@ -22,7 +24,7 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-const mongoUri = process.env.MONGODB_URI ||
+const mongoUri = getEnv('MONGODB_URI') ||
   (process.env.NODE_ENV === 'production' ? null : 'mongodb://localhost:27017/skillgapmapper');
 
 let mongoConnectPromise = null;
@@ -127,6 +129,6 @@ app.listen(PORT, () => {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] ✓ Server running on port ${PORT}`);
   console.log(`[${timestamp}] Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`[${timestamp}] MongoDB: ${process.env.MONGODB_URI ? 'configured' : 'using default'}`);
+  console.log(`[${timestamp}] MongoDB: ${getEnv('MONGODB_URI') ? 'configured' : 'using default'}`);
   console.log(`[${timestamp}] CORS origin: ${process.env.CLIENT_URL || 'all'}`);
 });
