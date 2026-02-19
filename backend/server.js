@@ -12,6 +12,8 @@ const adminRoutes = require('./routes/admin');
 
 const app = express();
 
+mongoose.set('bufferCommands', false);
+
 // Allow requests from the frontend. Use CLIENT_URL in the environment for strict CORS
 // In absence of CLIENT_URL (e.g., quick deploy), fall back to allowing all origins so the
 // hosted frontend (Netlify) can reach the API. Replace with a specific URL in production.
@@ -20,19 +22,44 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/skillgapmapper', {
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-  bufferCommands: true,
-  maxPoolSize: 10,
-  minPoolSize: 2,
-  retryWrites: true
-})
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => {
-    console.warn('⚠️ MongoDB connection failed (will retry):', err.message);
-    // Don't exit - let server start anyway for health checks
-  });
+const mongoUri = process.env.MONGODB_URI ||
+  (process.env.NODE_ENV === 'production' ? null : 'mongodb://localhost:27017/skillgapmapper');
+
+if (!mongoUri) {
+  console.warn('⚠️ MONGODB_URI is not set. API endpoints requiring database access will return 503.');
+} else {
+  mongoose.connect(mongoUri, {
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+    maxPoolSize: 10,
+    minPoolSize: 2,
+    retryWrites: true
+  })
+    .then(() => console.log('MongoDB connected'))
+    .catch(err => {
+      console.warn('⚠️ MongoDB connection failed (will retry):', err.message);
+      // Don't exit - let server start anyway for health checks
+    });
+}
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️ MongoDB disconnected');
+});
+
+const requireDbConnection = (req, res, next) => {
+  if (req.path === '/health') {
+    return next();
+  }
+
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      error: 'Database is unavailable. Please try again in a moment.'
+    });
+  }
+  next();
+};
+
+app.use('/api', requireDbConnection);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/resume', resumeRoutes);
@@ -40,7 +67,11 @@ app.use('/api/analysis', analysisRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
+app.get('/api/health', (req, res) => res.json({
+  status: 'ok',
+  timestamp: new Date(),
+  dbState: mongoose.connection.readyState
+}));
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

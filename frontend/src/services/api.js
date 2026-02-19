@@ -14,7 +14,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res.data,
   (err) => {
-    const message = err.response?.data?.error || err.message || 'Something went wrong';
+    const rawMessage = err.response?.data?.error || err.message || 'Something went wrong';
+    const message = /buffering timed out|Database is unavailable/i.test(rawMessage)
+      ? 'Server database is currently unavailable. Please try again in a minute.'
+      : rawMessage;
     return Promise.reject(new Error(message));
   }
 );
